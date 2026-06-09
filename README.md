@@ -2,6 +2,14 @@
 
 MVP messenger with Android Kotlin/Jetpack Compose client and Kotlin Ktor backend.
 
+## Download
+
+APK for quick Android emulator/local backend testing:
+
+- [Astrax-Test-Messenger-debug.apk](https://github.com/DenisVyukhin/astrax-test-messenger-by-ai/releases/download/v1.0.0-debug/Astrax-Test-Messenger-debug.apk)
+
+This debug build uses `http://10.0.2.2:8080` as the backend URL. For public internet testing, deploy the backend and rebuild Android with `astrax.baseUrl=https://your-domain` in `local.properties`.
+
 ## Structure
 
 ```text
