@@ -1,0 +1,16 @@
+[Unit]
+Description=Astrax Messenger Backend
+After=network.target
+
+[Service]
+Type=simple
+User=astrax
+Group=astrax
+WorkingDirectory=/opt/astrax
+EnvironmentFile=/opt/astrax/.env
+ExecStart=/opt/astrax/backend/bin/backend
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

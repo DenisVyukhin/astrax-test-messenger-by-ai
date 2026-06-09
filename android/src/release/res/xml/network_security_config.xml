@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- IP-only release build: HTTP is allowed until a real domain and HTTPS are available. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

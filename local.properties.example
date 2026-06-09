@@ -1,0 +1,13 @@
+## Android local configuration example.
+## Copy to local.properties and adjust for your machine.
+
+# Android SDK path is usually added by Android Studio, for example:
+# sdk.dir=/Users/you/Library/Android/sdk
+
+# Android client backend URL.
+# Emulator default:
+astrax.baseUrl=http://10.0.2.2:8080
+
+# Physical device / remote backend examples:
+# astrax.baseUrl=http://192.168.1.100:8080
+# astrax.baseUrl=https://astrax.example.com
