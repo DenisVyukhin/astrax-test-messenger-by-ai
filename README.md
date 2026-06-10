@@ -1,135 +1,138 @@
 # Astrax Test Messenger by AI
 
-MVP messenger with Android Kotlin/Jetpack Compose client and Kotlin Ktor backend.
+MVP-мессенджер: Android-клиент на Kotlin/Jetpack Compose и backend на Kotlin/Ktor.
 
-## Download
-
-APK for Android devices:
+## Скачать APK
 
 - [Astrax_1.0.apk](https://github.com/DenisVyukhin/astrax-test-messenger-by-ai/releases/download/v1.0.0/Astrax_1.0.apk)
 
-This release build is intended for public testing with the deployed backend. For custom deployments, rebuild Android with `astrax.baseUrl=https://your-domain` in `local.properties`.
+Сборка предназначена для публичного тестирования с развернутым backend. Для своего сервера нужно пересобрать Android с нужным `astrax.baseUrl` в `local.properties`.
 
-## Structure
+## Стек
 
-```text
-Astrax/
-  backend/          # Ktor REST + WebSocket server
-  android/          # Jetpack Compose client
-  deploy/           # VPS deployment scripts (nginx, systemd)
-```
+**Android**
 
-## Backend (local dev)
+- Kotlin
+- Jetpack Compose
+- Material 3
+- Ktor Client
+- Kotlinx Serialization
+- WebSocket-клиент
+- SharedPreferences для хранения токена
 
-```bash
-./gradlew :backend:run
-```
+**Backend**
 
-Server listens on `http://0.0.0.0:8080`, SQLite data in `astrax.db`.
+- Kotlin
+- Ktor Server + Netty
+- REST API + WebSocket
+- JWT-авторизация
+- SQLite
+- Exposed SQL DSL
+- HikariCP
+- Kotlinx Serialization
+- Logback
+
+**Инфраструктура**
+
+- Gradle Kotlin DSL
+- nginx + systemd для VPS-деплоя
+- GitHub Releases для APK
+
+## Защита
+
+| От чего | Как сделано |
+|---------|-------------|
+| Неавторизованный доступ к API | Закрытые REST endpoints находятся внутри `authenticate("auth")`; без валидного JWT сервер возвращает ошибку авторизации. |
+| Неавторизованный WebSocket | При подключении к `/ws/chats/{id}` сервер проверяет `Authorization: Bearer ...`; без валидного токена соединение закрывается. |
+| Доступ к чужим чатам | Перед чтением сообщений, отправкой, удалением и изменением настроек вызывается проверка членства пользователя в чате (`requireMember`). |
+| SQL-инъекции | Запросы к базе написаны через Exposed SQL DSL, а не через ручную склейку SQL-строк. Логины и поисковые запросы дополнительно проходят regex-валидацию. |
+| Брутфорс логина/регистрации | Для `/auth/login` и `/auth/register` есть rate limiter: ограничение количества запросов с одного IP за окно времени. |
+| Спам сообщениями | Отправка сообщений ограничена rate limiter на пользователя. |
+| Утечка паролей | Пароли не хранятся в открытом виде; используется bcrypt-хеширование с cost `12`. |
+| Подбор/подмена токена | JWT подписывается HMAC256, содержит issuer/audience, user id и срок жизни. Секрет задается через `ASTRAX_JWT_SECRET`. |
+| Некорректные входные данные | Логин, пароль, поисковый запрос и текст сообщения валидируются на сервере по длине и формату. |
+| Лишние CORS-домены | Разрешенные host'ы берутся из `ASTRAX_CORS_HOSTS`; для локальной разработки разрешены только локальные адреса. |
+
+## Локальный запуск
+
+### 1. Поднять backend
 
 ```bash
 export ASTRAX_JWT_SECRET="replace-with-long-random-secret"
+./gradlew :backend:run
 ```
 
-## Android (local dev)
+Сервер стартует на:
 
-Emulator default: `http://10.0.2.2:8080` (host machine).
+```text
+http://0.0.0.0:8080
+```
 
-For a physical device on the same Wi-Fi:
+Проверка:
+
+```bash
+curl http://localhost:8080/health
+```
+
+По умолчанию SQLite-файл создается как `astrax.db` в корне проекта.
+
+### 2. Запустить Android в эмуляторе
+
+Для Android Emulator backend на host-машине доступен по адресу `10.0.2.2`, поэтому можно оставить default:
 
 ```properties
-# local.properties
-astrax.baseUrl=http://192.168.1.79:8080
+astrax.baseUrl=http://10.0.2.2:8080
 ```
+
+Сборка debug APK:
 
 ```bash
 ./gradlew :android:assembleDebug
 ```
 
-## Remote deployment (different cities)
+APK будет здесь:
 
-To chat from different cities, deploy the backend on a public VPS with HTTPS.
-
-### Minimum server requirements
-
-| Parameter | Value |
-|-----------|-------|
-| CPU | 1 vCPU |
-| RAM | 512 MB – 1 GB |
-| Disk | 10 GB SSD |
-| OS | Ubuntu 22.04 or 24.04 |
-| Users | up to 10 (experimental load) |
-
-Examples: Hetzner CX11 (~€4/mo), Timeweb minimal VPS, DigitalOcean $4 droplet.
-
-No database server needed — SQLite file on disk is enough.
-
-### What to provide for deployment
-
-To connect and deploy myself, I need:
-
-1. **VPS SSH access** — `user@IP` and SSH key or password
-2. **Domain** — e.g. `astrax.example.com` with A-record pointing to VPS IP (needed for HTTPS)
-3. **JWT secret** — random string 32+ chars (or I generate one)
-
-Optional: if no domain, we can use IP + self-signed cert, but then each phone needs manual cert install — not recommended.
-
-### Deployment steps
-
-**1. On the VPS (once):**
-
-```bash
-# Upload deploy/ folder, then:
-sudo bash setup-server.sh astrax.example.com
-
-# Create env file:
-sudo cp env.example /opt/astrax/.env
-sudo nano /opt/astrax/.env   # set ASTRAX_JWT_SECRET and ASTRAX_CORS_HOSTS
-sudo chown astrax:astrax /opt/astrax/.env
-sudo systemctl start astrax-backend
+```text
+android/build/outputs/apk/debug/android-debug.apk
 ```
 
-**2. From your machine (each update):**
+### 3. Запустить Android на физическом телефоне
 
-```bash
-cd deploy
-./deploy.sh root@YOUR_VPS_IP
-```
-
-**3. Android — point to remote server:**
+Телефон и компьютер должны быть в одной Wi-Fi сети. В `local.properties` укажите IP компьютера:
 
 ```properties
-# local.properties
+astrax.baseUrl=http://192.168.1.79:8080
+```
+
+Затем пересоберите APK:
+
+```bash
+./gradlew :android:assembleDebug
+```
+
+### 4. Release-сборка под свой сервер
+
+```properties
 astrax.baseUrl=https://astrax.example.com
 ```
 
 ```bash
 ./gradlew :android:assembleRelease
-# or assembleDebug for testing
 ```
 
-Install the APK on phones — users in any city can register and chat.
-
-### Architecture
+## Структура проекта
 
 ```text
-Phone (City A) ──HTTPS/WSS──┐
-                             ├──► nginx (443) ──► Ktor (8080) ──► SQLite
-Phone (City B) ──HTTPS/WSS──┘
+Astrax/
+  android/          # Android-приложение
+  backend/          # Ktor REST + WebSocket server
+  deploy/           # nginx/systemd/VPS deployment scripts
 ```
 
-WebSocket path: `wss://your-domain/ws/chats/{id}`
+## Переменные окружения backend
 
-### Environment variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `ASTRAX_JWT_SECRET` | JWT signing key (required in prod) | random 32+ chars |
-| `ASTRAX_DB_URL` | SQLite path | `jdbc:sqlite:/opt/astrax/data/astrax.db` |
-| `ASTRAX_CORS_HOSTS` | Allowed CORS hosts (comma-separated) | `astrax.example.com` |
-
-## Testing
-
-- **Server health:** `curl https://your-domain/health`
-- **Android emulator:** I cannot run Android Studio emulator directly. You test on emulator or a real device; I verify the server via SSH and curl.
-- **Emulator for local dev:** useful if the server runs on your machine (`10.0.2.2:8080`). For remote VPS testing, a real phone or emulator with `astrax.baseUrl=https://...` works the same.
+| Переменная | Описание | Пример |
+|------------|----------|--------|
+| `ASTRAX_JWT_SECRET` | JWT-секрет для подписи токенов | `random-32-plus-chars` |
+| `ASTRAX_DB_URL` | JDBC URL SQLite-базы | `jdbc:sqlite:/opt/astrax/data/astrax.db` |
+| `ASTRAX_CORS_HOSTS` | Разрешенные CORS host'ы через запятую | `astrax.example.com` |
